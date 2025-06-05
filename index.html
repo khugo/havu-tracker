@@ -107,6 +107,87 @@
             font-style: italic;
         }
         
+        .history {
+            margin-top: 30px;
+        }
+        
+        .history h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .table-container {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+        
+        th, td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .editable-time {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .editable-time:hover {
+            background-color: #f8f9fa;
+        }
+        
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .event-poop {
+            color: #8B4513;
+        }
+        
+        .event-pee {
+            color: #DAA520;
+        }
+        
+        .no-events {
+            text-align: center;
+            color: #999;
+            font-style: italic;
+            padding: 20px;
+        }
+        
+        .reset-btn {
+            width: 100%;
+            margin-top: 15px;
+            padding: 12px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .reset-btn:hover {
+            background-color: #c82333;
+        }
+        
+        .reset-btn:active {
+            transform: scale(0.98);
+        }
+        
         @media (max-width: 480px) {
             .buttons {
                 flex-direction: column;
@@ -119,6 +200,14 @@
             .btn {
                 padding: 25px;
                 font-size: 1.1em;
+            }
+            
+            table {
+                font-size: 0.8em;
+            }
+            
+            th, td {
+                padding: 6px 8px;
             }
         }
     </style>
@@ -141,13 +230,51 @@
             <button class="btn poop-btn" onclick="recordEvent('poop')">💩 Poop</button>
             <button class="btn pee-btn" onclick="recordEvent('pee')">💧 Pee</button>
         </div>
+        
+        <div class="history">
+            <h2>📋 History</h2>
+            <div class="table-container">
+                <table id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Date & Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody">
+                    </tbody>
+                </table>
+            </div>
+            <button class="reset-btn" onclick="resetAllData()">🗑️ Reset All Data</button>
+        </div>
     </div>
 
     <script>
+        function getEventLog(type) {
+            const stored = localStorage.getItem(`puppy_${type}_log`);
+            if (stored) {
+                return JSON.parse(stored);
+            }
+            
+            // Migration: check for old single timestamp format
+            const oldTimestamp = localStorage.getItem(`puppy_${type}`);
+            if (oldTimestamp) {
+                const log = [{ timestamp: parseInt(oldTimestamp), type }];
+                localStorage.setItem(`puppy_${type}_log`, JSON.stringify(log));
+                localStorage.removeItem(`puppy_${type}`);
+                return log;
+            }
+            
+            return [];
+        }
+        
         function recordEvent(type) {
             const timestamp = Date.now();
-            localStorage.setItem(`puppy_${type}`, timestamp);
+            const log = getEventLog(type);
+            log.push({ timestamp, type });
+            localStorage.setItem(`puppy_${type}_log`, JSON.stringify(log));
             updateTimers();
+            renderHistory();
         }
         
         function formatTimeSince(timestamp) {
@@ -174,16 +301,115 @@
             }
         }
         
-        function updateTimers() {
-            const poopTimestamp = localStorage.getItem('puppy_poop');
-            const peeTimestamp = localStorage.getItem('puppy_pee');
-            
-            document.getElementById('poopTimer').textContent = formatTimeSince(poopTimestamp);
-            document.getElementById('peeTimer').textContent = formatTimeSince(peeTimestamp);
+        function formatDateTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString('en-US', { 
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+            });
         }
         
-        // Initialize timers on page load
+        function updateTimers() {
+            const poopLog = getEventLog('poop');
+            const peeLog = getEventLog('pee');
+            
+            const lastPoop = poopLog.length > 0 ? poopLog[poopLog.length - 1].timestamp : null;
+            const lastPee = peeLog.length > 0 ? peeLog[peeLog.length - 1].timestamp : null;
+            
+            document.getElementById('poopTimer').textContent = formatTimeSince(lastPoop);
+            document.getElementById('peeTimer').textContent = formatTimeSince(lastPee);
+        }
+        
+        function renderHistory() {
+            const poopLog = getEventLog('poop');
+            const peeLog = getEventLog('pee');
+            
+            // Combine and sort by timestamp (newest first)
+            const allEvents = [...poopLog, ...peeLog].sort((a, b) => b.timestamp - a.timestamp);
+            
+            const tbody = document.getElementById('historyBody');
+            
+            if (allEvents.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" class="no-events">No events recorded yet</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = allEvents.map((event, index) => {
+                const emoji = event.type === 'poop' ? '💩' : '💧';
+                const className = event.type === 'poop' ? 'event-poop' : 'event-pee';
+                return `
+                    <tr>
+                        <td class="${className}">${emoji} ${event.type.charAt(0).toUpperCase() + event.type.slice(1)}</td>
+                        <td class="editable-time" onclick="editEventTime('${event.type}', ${event.timestamp})">${formatDateTime(event.timestamp)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        function editEventTime(eventType, originalTimestamp) {
+            const date = new Date(originalTimestamp);
+            
+            // Format for datetime-local input (YYYY-MM-DDTHH:MM)
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const datetimeValue = `${year}-${month}-${day}T${hours}:${minutes}`;
+            
+            // Create a temporary input element
+            const input = document.createElement('input');
+            input.type = 'datetime-local';
+            input.value = datetimeValue;
+            input.style.position = 'absolute';
+            input.style.left = '-9999px';
+            document.body.appendChild(input);
+            
+            input.addEventListener('change', function() {
+                if (input.value) {
+                    const newTimestamp = new Date(input.value).getTime();
+                    updateEventTime(eventType, originalTimestamp, newTimestamp);
+                }
+                document.body.removeChild(input);
+            });
+            
+            input.addEventListener('blur', function() {
+                document.body.removeChild(input);
+            });
+            
+            input.showPicker();
+        }
+        
+        function updateEventTime(eventType, oldTimestamp, newTimestamp) {
+            const log = getEventLog(eventType);
+            const eventIndex = log.findIndex(event => event.timestamp === oldTimestamp);
+            
+            if (eventIndex !== -1) {
+                log[eventIndex].timestamp = newTimestamp;
+                localStorage.setItem(`puppy_${eventType}_log`, JSON.stringify(log));
+                updateTimers();
+                renderHistory();
+            }
+        }
+        
+        function resetAllData() {
+            if (confirm('Are you sure you want to delete all puppy tracking data? This cannot be undone.')) {
+                localStorage.removeItem('puppy_poop_log');
+                localStorage.removeItem('puppy_pee_log');
+                // Also remove old format keys in case they exist
+                localStorage.removeItem('puppy_poop');
+                localStorage.removeItem('puppy_pee');
+                updateTimers();
+                renderHistory();
+            }
+        }
+        
+        // Initialize on page load
         updateTimers();
+        renderHistory();
         
         // Update timers every second
         setInterval(updateTimers, 1000);

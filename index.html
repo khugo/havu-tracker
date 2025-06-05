@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puppy Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f8ff;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+        
+        .timer {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .timer h2 {
+            color: #555;
+            margin-bottom: 10px;
+        }
+        
+        .time-display {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .poop-timer .time-display {
+            color: #8B4513;
+        }
+        
+        .pee-timer .time-display {
+            color: #FFD700;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn:active {
+            transform: scale(0.95);
+        }
+        
+        .poop-btn {
+            background-color: #8B4513;
+            color: white;
+        }
+        
+        .poop-btn:hover {
+            background-color: #A0522D;
+            box-shadow: 0 4px 8px rgba(139, 69, 19, 0.3);
+        }
+        
+        .pee-btn {
+            background-color: #FFD700;
+            color: #333;
+        }
+        
+        .pee-btn:hover {
+            background-color: #FFED4E;
+            box-shadow: 0 4px 8px rgba(255, 215, 0, 0.3);
+        }
+        
+        .never {
+            color: #999;
+            font-style: italic;
+        }
+        
+        @media (max-width: 480px) {
+            .buttons {
+                flex-direction: column;
+            }
+            
+            h1 {
+                font-size: 1.5em;
+            }
+            
+            .btn {
+                padding: 25px;
+                font-size: 1.1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐶 Puppy Tracker</h1>
+        
+        <div class="timer poop-timer">
+            <h2>💩 Last Poop</h2>
+            <div class="time-display" id="poopTimer">Never</div>
+        </div>
+        
+        <div class="timer pee-timer">
+            <h2>💧 Last Pee</h2>
+            <div class="time-display" id="peeTimer">Never</div>
+        </div>
+        
+        <div class="buttons">
+            <button class="btn poop-btn" onclick="recordEvent('poop')">💩 Poop</button>
+            <button class="btn pee-btn" onclick="recordEvent('pee')">💧 Pee</button>
+        </div>
+    </div>
+
+    <script>
+        function recordEvent(type) {
+            const timestamp = Date.now();
+            localStorage.setItem(`puppy_${type}`, timestamp);
+            updateTimers();
+        }
+        
+        function formatTimeSince(timestamp) {
+            if (!timestamp) return 'Never';
+            
+            const now = Date.now();
+            const diff = now - timestamp;
+            const totalSeconds = Math.floor(diff / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            
+            if (totalSeconds < 60) {
+                return seconds === 1 ? '1 second ago' : `${seconds} seconds ago`;
+            } else if (minutes < 60) {
+                return `${minutes}:${seconds.toString().padStart(2, '0')} ago`;
+            } else {
+                const hours = Math.floor(minutes / 60);
+                const remainingMinutes = minutes % 60;
+                if (hours === 1) {
+                    return remainingMinutes > 0 ? `1 hour ${remainingMinutes} min ago` : '1 hour ago';
+                } else {
+                    return remainingMinutes > 0 ? `${hours} hours ${remainingMinutes} min ago` : `${hours} hours ago`;
+                }
+            }
+        }
+        
+        function updateTimers() {
+            const poopTimestamp = localStorage.getItem('puppy_poop');
+            const peeTimestamp = localStorage.getItem('puppy_pee');
+            
+            document.getElementById('poopTimer').textContent = formatTimeSince(poopTimestamp);
+            document.getElementById('peeTimer').textContent = formatTimeSince(peeTimestamp);
+        }
+        
+        // Initialize timers on page load
+        updateTimers();
+        
+        // Update timers every second
+        setInterval(updateTimers, 1000);
+    </script>
+</body>
+</html>

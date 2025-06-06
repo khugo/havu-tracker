@@ -61,6 +61,10 @@
             color: #FFD700;
         }
         
+        .food-timer .time-display {
+            color: #FF6B35;
+        }
+        
         .buttons {
             display: flex;
             gap: 15px;
@@ -100,6 +104,16 @@
         .pee-btn:hover {
             background-color: #FFED4E;
             box-shadow: 0 4px 8px rgba(255, 215, 0, 0.3);
+        }
+        
+        .food-btn {
+            background-color: #FF6B35;
+            color: white;
+        }
+        
+        .food-btn:hover {
+            background-color: #FF8C69;
+            box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
         }
         
         .never {
@@ -158,6 +172,10 @@
         
         .event-pee {
             color: #DAA520;
+        }
+        
+        .event-food {
+            color: #FF6B35;
         }
         
         .no-events {
@@ -234,9 +252,15 @@
             <div class="time-display" id="peeTimer">Never</div>
         </div>
         
+        <div class="timer food-timer">
+            <h2>🍽️ Last Food</h2>
+            <div class="time-display" id="foodTimer">Never</div>
+        </div>
+        
         <div class="buttons">
             <button class="btn poop-btn" onclick="recordEvent('poop')">💩 Poop</button>
             <button class="btn pee-btn" onclick="recordEvent('pee')">💧 Pee</button>
+            <button class="btn food-btn" onclick="recordEvent('food')">🍽️ Food</button>
         </div>
         
         <div class="history">
@@ -327,20 +351,26 @@
         function updateTimers() {
             const poopLog = getEventLog('poop');
             const peeLog = getEventLog('pee');
+            const foodLog = getEventLog('food');
             
             const lastPoop = poopLog.length > 0 ? poopLog[poopLog.length - 1].timestamp : null;
             const lastPee = peeLog.length > 0 ? peeLog[peeLog.length - 1].timestamp : null;
+            const lastFood = foodLog.length > 0 ? foodLog[foodLog.length - 1].timestamp : null;
             
             document.getElementById('poopTimer').textContent = formatTimeSince(lastPoop);
             document.getElementById('peeTimer').textContent = formatTimeSince(lastPee);
+            document.getElementById('foodTimer').textContent = formatTimeSince(lastFood);
         }
         
         function renderHistory() {
             const poopLog = getEventLog('poop');
             const peeLog = getEventLog('pee');
+            const foodLog = getEventLog('food');
             
-            // Combine and sort by timestamp (newest first)
-            const allEvents = [...poopLog, ...peeLog].sort((a, b) => b.timestamp - a.timestamp);
+            // Combine and sort by timestamp (newest first), then limit to 20
+            const allEvents = [...poopLog, ...peeLog, ...foodLog]
+                .sort((a, b) => b.timestamp - a.timestamp)
+                .slice(0, 20);
             
             const tbody = document.getElementById('historyBody');
             
@@ -350,8 +380,18 @@
             }
             
             tbody.innerHTML = allEvents.map((event, index) => {
-                const emoji = event.type === 'poop' ? '💩' : '💧';
-                const className = event.type === 'poop' ? 'event-poop' : 'event-pee';
+                let emoji, className;
+                if (event.type === 'poop') {
+                    emoji = '💩';
+                    className = 'event-poop';
+                } else if (event.type === 'pee') {
+                    emoji = '💧';
+                    className = 'event-pee';
+                } else if (event.type === 'food') {
+                    emoji = '🍽️';
+                    className = 'event-food';
+                }
+                
                 return `
                     <tr>
                         <td class="${className}">${emoji} ${event.type.charAt(0).toUpperCase() + event.type.slice(1)}</td>
@@ -463,9 +503,11 @@
             if (confirm('Are you sure you want to delete all puppy tracking data? This cannot be undone.')) {
                 localStorage.removeItem('puppy_poop_log');
                 localStorage.removeItem('puppy_pee_log');
+                localStorage.removeItem('puppy_food_log');
                 // Also remove old format keys in case they exist
                 localStorage.removeItem('puppy_poop');
                 localStorage.removeItem('puppy_pee');
+                localStorage.removeItem('puppy_food');
                 updateTimers();
                 renderHistory();
             }
